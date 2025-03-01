@@ -35,10 +35,3 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
-
-# Ignore everything in the folder
-bin/*
-
-# But track .zip and .tar.gz files
-!bin/*.zip
-!bin/*.tar.gz
