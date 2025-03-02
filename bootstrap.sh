@@ -16,7 +16,6 @@ extract_if_needed() {
     local file="$1"
     local binary_files
 
-
     # Determine the command to list files based on file type
     if [[ "$file" == *.zip ]]; then
         binary_files=$(unzip -Z1 "$file" | grep -vE -e '\.(txt|md|html|csv|json|xml|yaml|log|tpl)$' -e 'LICENSE')
@@ -26,9 +25,7 @@ extract_if_needed() {
         return
     fi
 
-
     [[ -z "$binary_files" ]] && echo "No binary files found in $file, skipping." && return
-
 
     # Check if any of the binary files already exist
     for f in $binary_files; do
@@ -37,7 +34,6 @@ extract_if_needed() {
             return
         fi
     done
-
 
     echo " - Extracting binary files from $file..."
     if [[ "$file" == *.zip ]]; then
@@ -49,7 +45,6 @@ extract_if_needed() {
 
 check-binary-files(){
     dest_dir="bin"
-
 
     echo "Checking for ${OSTYPE} binary files to extract if necessary."
     for file in "$dest_dir"/*"${OSTYPE}"*.zip "$dest_dir"/*"${OSTYPE}"*.tar.gz; do
