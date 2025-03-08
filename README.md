@@ -1,9 +1,9 @@
 # gitops-platform
 The repository of platform resources deployment
 
-## Repository setup
-Run the follow command to setup the repository
+## Repository dependencies
+Please, install the following dependencies before setup this repository
 
-```
-./bootstrap.sh
-```
+* direnv
+* pre-commit
+* shellcheck-py
