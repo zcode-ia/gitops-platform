@@ -39,7 +39,7 @@ extract_if_needed() {
     if [[ "$file" == *.zip ]]; then
         unzip "$file" "$binary_files" -d "$dest_dir"
     else
-        tar -xzf "$file" "$binary_files" -C "$dest_dir"
+        tar -xzf "$file" -C "$dest_dir" "$binary_files"
     fi
 }
 
