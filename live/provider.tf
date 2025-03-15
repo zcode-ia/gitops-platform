@@ -8,4 +8,8 @@ provider "aws" {
 
   access_key = "foo"
   secret_key = "bar"
+
+  endpoints {
+    ec2 = "http://localhost:4566"
+  }
 }
