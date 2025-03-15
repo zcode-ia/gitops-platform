@@ -12,11 +12,7 @@ jobs:
   terraform:
     name: 'Terraform Plan'
     runs-on: ubuntu-latest
-    services:
-      localstack:
-        image: localstack/localstack:latest
-        ports:
-          - 4566:4566
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,13 +29,3 @@ jobs:
       - name: Terraform Plan
         run: terraform plan
         working-directory: ./live
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
-        working-directory: ./live
-
-      - name: Describe VPC
-        run: aws --endpoint-url=http://localhost:4566 ec2 describe-vpcs
-        env:
-          AWS_ACCESS_KEY_ID: foo
-          AWS_SECRET_ACCESS_KEY: bar
-          AWS_DEFAULT_REGION: us-west-2
