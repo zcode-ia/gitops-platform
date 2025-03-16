@@ -22,3 +22,4 @@ repos:
     hooks:
     -   id: terraform-fmt # terraform format files
     -   id: terraform-validate # terraform validate
+    -   id: tflint # static analysis of Terraform templates
