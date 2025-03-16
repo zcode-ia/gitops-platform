@@ -1,4 +1,4 @@
-name: Terraform Plan
+name: Terraform
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   terraform:
-    name: 'Terraform Plan'
+    name: 'Terraform'
     runs-on: ubuntu-latest
     services:
       localstack:
@@ -21,10 +21,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.10.5
+      # Step to install necessary dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip direnv
+
+      # Step to setup the repository
+      - name: Setup Repository
+        run: |
+          SKIP=enable_pre_commit ./bootstrap.sh
+
+          # Extract the updated PATH and write it to GITHUB_ENV
+          NEW_PATH=$(direnv exec . bash -c 'echo $PATH')
+          echo "PATH=$NEW_PATH" >> $GITHUB_ENV
 
       - name: Terraform Init
         run: terraform init
@@ -37,10 +47,3 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve
         working-directory: ./live
-
-      - name: Describe VPC
-        run: aws --endpoint-url=http://localhost:4566 ec2 describe-vpcs
-        env:
-          AWS_ACCESS_KEY_ID: foo
-          AWS_SECRET_ACCESS_KEY: bar
-          AWS_DEFAULT_REGION: us-west-2
