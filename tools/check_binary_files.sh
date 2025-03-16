@@ -42,7 +42,7 @@ extract_if_needed() {
 # Check for binary files in the destination directory and extract them if necessary
 check-binary-files() {
     echo "Checking for binary files to extract if necessary."
-    for file in "$dest_dir"/*.zip "$dest_dir"/*.tar.gz; do
+    for file in "$dest_dir"/*"${OS_TYPE}"*.zip "$dest_dir"/*"${OS_TYPE}"*.tar.gz; do
         echo "+ Analysing: $file"
         [[ -f "$file" ]] && extract_if_needed "$file"
     done
