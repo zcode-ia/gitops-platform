@@ -36,7 +36,7 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# ignore terraform lock files
+# ignore terraform lock files.
 .terraform.lock.hcl
 
 # Ignore everything in the folder
