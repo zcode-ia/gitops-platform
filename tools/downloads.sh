@@ -6,9 +6,9 @@ GIT_ROOT_DIR=$(git rev-parse --show-toplevel)
 # Set the Github runner os-type
 RUNNER_OSTYPE=linux-gnu
 
-# ---------------------------------------------
+# ----------------------------------------------
 # List for AMD64 machines
-# ---------------------------------------------
+# ----------------------------------------------
 # TERRAFORM from https://releases.hashicorp.com/terraform
 TERRAFORM_VERSION=1.10.5
 
