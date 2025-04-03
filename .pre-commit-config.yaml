@@ -8,7 +8,7 @@ repos:
     -   id: end-of-file-fixer
     -   id: check-yaml
     -   id: check-added-large-files
-        args: ['--maxkb=30000']
+        args: ['--maxkb=50000']
     -   id: mixed-line-ending
         args: ['--fix=lf']
     -   id: check-executables-have-shebangs
@@ -23,3 +23,12 @@ repos:
     -   id: terraform-fmt # terraform format files
     -   id: terraform-validate # terraform validate
     -   id: tflint # static analysis of Terraform templates
+-   repo: local
+    hooks:
+    -   id: trivy-scan
+        name: Trivy Security Scan
+        entry: bash ./hooks/trivy_scan.sh
+        language: system
+        types: [terraform]
+        description: Run Trivy to scan for vulnerabilities in changed files or directories
+        pass_filenames: true

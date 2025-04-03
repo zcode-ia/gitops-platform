@@ -39,3 +39,19 @@ curl -L "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT
 
 # For Github runner pipeline
 curl -L "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_amd64.zip" -o "${GIT_ROOT_DIR}/bin/tflint_${TFLINT_VERSION}_${RUNNER_OSTYPE}.zip"
+
+# ---------------------------------------------
+# TRIVY from https://github.com/aquasecurity/trivy/tags
+TRIVY_VERSION=0.61.0
+
+# for Linux local machine
+# curl -L "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -o "${GIT_ROOT_DIR}/bin/trivy_${TRIVY_VERSION}_${OSTYPE}.tar.gz"
+
+# for Windows local machine
+curl -L "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_windows-64bit.zip" -o "${GIT_ROOT_DIR}/bin/trivy_${TRIVY_VERSION}_${OSTYPE}.zip"
+
+# for MacOS local machine
+# curl -L "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_macOS-64bit.tar.gz" -o "${GIT_ROOT_DIR}/bin/trivy_${TRIVY_VERSION}_${OSTYPE}.tar.gz"
+
+# For Github runner pipeline
+curl -L "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -o "${GIT_ROOT_DIR}/bin/trivy_${TRIVY_VERSION}_${RUNNER_OSTYPE}.tar.gz"

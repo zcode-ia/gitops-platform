@@ -1,0 +1,6 @@
+severity:
+  - HIGH
+  - CRITICAL
+  - MEDIUM
+  - LOW
+exit-code: 1
