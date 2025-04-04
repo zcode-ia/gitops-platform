@@ -10,6 +10,9 @@ provider "aws" {
   secret_key = "bar"
 
   endpoints {
-    ec2 = "http://localhost:4566"
+    ec2        = "http://localhost:4566" // for vpc deployment
+    cloudwatch = "http://localhost:4566" // for cloudwatch deployment
+    logs       = "http://localhost:4566" // for logs deployment
+    iam        = "http://localhost:4566" // for iam deployment
   }
 }
