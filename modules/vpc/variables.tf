@@ -79,26 +79,37 @@ variable "private_subnets" {
 }
 
 variable "flow_log_tags" {
-  description = "Tags for the VPC Flow Logs"
+  description = "Tags to assign to the flow logs."
   type        = map(string)
+  default     = {}
 }
 
 variable "cloudwatch_log_group_tags" {
-  description = "Tags for the CloudWatch Log Group"
+  description = "Tags to assign to the CloudWatch log group."
   type        = map(string)
+  default     = {}
 }
 
 variable "flow_log_role_name" {
-  description = "The name of the IAM role for VPC Flow Logs"
+  description = "Name of the IAM role for flow logs."
   type        = string
+  default     = null
 }
 
 variable "flow_log_policy_name" {
-  description = "The name of the IAM policy for VPC Flow Logs"
+  description = "Name of the IAM policy for flow logs."
   type        = string
+  default     = null
 }
 
 variable "cloudwatch_log_group_retention_in_days" {
-  description = "The retention period for the CloudWatch Log Group in days"
+  description = "Retention period for the CloudWatch log group in days."
   type        = number
+  default     = 0
+}
+
+variable "enable_flow_logs" {
+  description = "Enable VPC Flow Logs."
+  type        = bool
+  default     = false
 }

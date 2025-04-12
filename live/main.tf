@@ -22,9 +22,10 @@ module "vpc" {
   private_route_table_tags               = each.value.private_route_table_tags
   public_subnets                         = each.value.public_subnets
   private_subnets                        = each.value.private_subnets
-  flow_log_tags                          = each.value.flow_log_tags
-  cloudwatch_log_group_tags              = each.value.cloudwatch_log_group_tags
-  flow_log_role_name                     = each.value.flow_log_role_name
-  flow_log_policy_name                   = each.value.flow_log_policy_name
-  cloudwatch_log_group_retention_in_days = each.value.cloudwatch_log_group_retention_in_days
+  flow_log_tags                          = lookup(each.value, "flow_log_tags", {})
+  cloudwatch_log_group_tags              = lookup(each.value, "cloudwatch_log_group_tags", {})
+  flow_log_role_name                     = lookup(each.value, "flow_log_role_name", null)
+  flow_log_policy_name                   = lookup(each.value, "flow_log_policy_name", null)
+  cloudwatch_log_group_retention_in_days = lookup(each.value, "cloudwatch_log_group_retention_in_days", 0)
+  enable_flow_logs                       = lookup(each.value, "enable_flow_logs", false)
 }

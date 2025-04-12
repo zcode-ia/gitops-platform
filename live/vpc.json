@@ -60,7 +60,8 @@
     },
     "cloudwatch_log_group_tags": {
       "Name": "example-cloudwatch-log-group"
-    }
+    },
+    "enable_flow_logs": true
   },
   "vpc_2": {
     "vpc_cidr_block": "192.168.0.0/16",
@@ -96,11 +97,6 @@
         "map_public_ip_on_launch": false,
         "tags": { "Name": "private-subnet-2c" }
       }
-    ],
-    "flow_log_tags": { "Name": "flow-log-2" },
-    "cloudwatch_log_group_tags": { "Name": "cloudwatch-log-group-2" },
-    "flow_log_role_name": "flow-log-role-2",
-    "flow_log_policy_name": "flow-log-policy-2",
-    "cloudwatch_log_group_retention_in_days": 7
+    ]
   }
 }

@@ -70,7 +70,8 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_iam_role" "this" {
-  name = var.flow_log_role_name
+  count = var.enable_flow_logs ? 1 : 0
+  name  = var.flow_log_role_name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -86,8 +87,9 @@ resource "aws_iam_role" "this" {
 }
 
 resource "aws_iam_role_policy" "this" {
-  name = var.flow_log_policy_name
-  role = aws_iam_role.this.id
+  count = var.enable_flow_logs ? 1 : 0
+  name  = var.flow_log_policy_name
+  role  = aws_iam_role.this[0].id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -107,16 +109,18 @@ resource "aws_iam_role_policy" "this" {
 }
 
 resource "aws_flow_log" "this" {
-  log_destination      = aws_cloudwatch_log_group.this.arn
+  count                = var.enable_flow_logs ? 1 : 0
+  log_destination      = aws_cloudwatch_log_group.this[0].arn
   traffic_type         = "ALL"
   vpc_id               = aws_vpc.this.id
   log_destination_type = "cloud-watch-logs"
-  iam_role_arn         = aws_iam_role.this.arn
+  iam_role_arn         = aws_iam_role.this[0].arn
   tags                 = var.flow_log_tags
 }
 
 #trivy:ignore:AVD-AWS-0017
 resource "aws_cloudwatch_log_group" "this" {
+  count             = var.enable_flow_logs ? 1 : 0
   name              = "/aws/vpc/flow-logs/${aws_vpc.this.id}"
   retention_in_days = var.cloudwatch_log_group_retention_in_days
   tags              = var.cloudwatch_log_group_tags
