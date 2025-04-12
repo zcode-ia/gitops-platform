@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Bash safety flags:
+# -e: exit on any error
+# -u: treat unset variables as an error and exit
+# -o pipefail: fail if any command in a pipeline fails
+set -euo pipefail
+
 # Define the path to the Trivy configuration file
 CONFIG_FILE="$(dirname "$0")/trivy.yaml"
 
