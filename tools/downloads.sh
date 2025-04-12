@@ -61,3 +61,19 @@ curl -L "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSIO
 
 # For Github runner pipeline
 curl -L "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -o "${GIT_ROOT_DIR}/bin/trivy_${TRIVY_VERSION}_${RUNNER_OSTYPE}.tar.gz"
+
+# ---------------------------------------------
+# TERRAFORM-DOCS from https://github.com/terraform-docs/terraform-docs/tags
+TERRAFORM_DOCS_VERSION=0.19.0
+
+# for Linux local machine
+# curl -L "https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz" -o "${GIT_ROOT_DIR}/bin/terraform-docs-v${TERRAFORM_DOCS_VERSION}-${OSTYPE}.tar.gz"
+
+# for Windows local machine
+curl -L "https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-windows-amd64.zip" -o "${GIT_ROOT_DIR}/bin/terraform-docs-v${TERRAFORM_DOCS_VERSION}-${OSTYPE}.zip"
+
+# for MacOS local machine
+# curl -L "https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-darwin-amd64.tar.gz" -o "${GIT_ROOT_DIR}/bin/terraform-docs-v${TERRAFORM_DOCS_VERSION}-${OSTYPE}.tar.gz"
+
+# For Github runner pipeline
+curl -L "https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz" -o "${GIT_ROOT_DIR}/bin/terraform-docs-v${TERRAFORM_DOCS_VERSION}-runner.tar.gz"

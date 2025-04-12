@@ -32,3 +32,11 @@ repos:
         types: [terraform]
         description: Run Trivy to scan for vulnerabilities in changed files or directories
         pass_filenames: true
+-   repo: https://github.com/terraform-docs/terraform-docs
+    rev: "v0.20.0"
+    hooks:
+    -   id: terraform-docs-go
+        args:
+          - "--config"
+          - "hooks/.terraform-docs.yml"
+          - "./"
