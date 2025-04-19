@@ -43,6 +43,15 @@ extract_if_needed() {
     else
         tar -xzf "$file" -C "$dest_dir" "$binary_files"
     fi
+
+    # Ensure each extracted binary file has execution mode enabled
+    for f in $binary_files; do
+        extracted_file="$dest_dir/$f"
+        if [[ -f "$extracted_file" && ! -x "$extracted_file" ]]; then
+            echo "   - Setting executable permission for $extracted_file"
+            chmod +x "$extracted_file"
+        fi
+    done
 }
 
 # Check for binary files in the destination directory and extract them if necessary

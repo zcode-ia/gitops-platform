@@ -77,3 +77,19 @@ curl -L "https://github.com/terraform-docs/terraform-docs/releases/download/v${T
 
 # For Github runner pipeline
 curl -L "https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz" -o "${GIT_ROOT_DIR}/bin/terraform-docs-v${TERRAFORM_DOCS_VERSION}-runner.tar.gz"
+
+# ---------------------------------------------
+# TERRAGRUNT from https://github.com/gruntwork-io/terragrunt/tags
+TERRAGRUNT_VERSION=0.77.17
+
+# for Linux local machine
+# curl -L "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_amd64" -o "${GIT_ROOT_DIR}/bin/terragrunt"
+
+# for Windows local machine
+curl -L "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_windows_amd64.exe" -o "${GIT_ROOT_DIR}/bin/terragrunt.exe"
+
+# for MacOS local machine
+# curl -L "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_darwin_amd64" -o "${GIT_ROOT_DIR}/bin/terragrunt"
+
+# For Github runner pipeline
+curl -L "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_amd64" -o "${GIT_ROOT_DIR}/bin/terragrunt"
