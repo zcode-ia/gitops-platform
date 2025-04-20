@@ -4,6 +4,14 @@
 # remote state, and locking: https://github.com/gruntwork-io/terragrunt
 # ---------------------------------------------------------------------------------------------------------------------
 
+# Global variables for all AWS terraform modules.
+locals {
+  tags = {
+    "IAC_tool"   = "terraform"
+    "Managed_by" = "gitops-platform-private"
+  }
+}
+
 # Generate an AWS provider block.
 generate "provider" {
   path      = "provider.tf"

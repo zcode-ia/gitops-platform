@@ -11,6 +11,9 @@ include "root" {
 # Include the aws provider configuration.
 include "aws" {
   path = "${get_repo_root()}/live/_env/aws.hcl"
+
+  # To reference the variables from the included config.
+  expose = true
 }
 
 # Configure the module to use in this environment.
@@ -24,15 +27,28 @@ terraform {
 
 locals {
   inputs_from_json = jsondecode(file("${get_terragrunt_dir()}/vpc.json"))
+  env_vars         = read_terragrunt_config(find_in_parent_folders("env.hcl"))
 }
 
 inputs = {
-  vpc_cidr_block                         = local.inputs_from_json.vpc_cidr_block
-  vpc_enable_dns_support                 = local.inputs_from_json.vpc_enable_dns_support
-  vpc_enable_dns_hostnames               = local.inputs_from_json.vpc_enable_dns_hostnames
-  vpc_tags                               = local.inputs_from_json.vpc_tags
-  igw_tags                               = local.inputs_from_json.igw_tags
-  nat_gateway_tags                       = local.inputs_from_json.nat_gateway_tags
+  vpc_cidr_block           = local.inputs_from_json.vpc_cidr_block
+  vpc_enable_dns_support   = local.inputs_from_json.vpc_enable_dns_support
+  vpc_enable_dns_hostnames = local.inputs_from_json.vpc_enable_dns_hostnames
+  vpc_tags = merge(
+    local.inputs_from_json.vpc_tags,
+    include.aws.locals.tags,
+    local.env_vars.locals.tags
+  ),
+  igw_tags = merge(
+    local.inputs_from_json.igw_tags,
+    include.aws.locals.tags,
+    local.env_vars.locals.tags
+  ),
+  nat_gateway_tags = merge(
+    local.inputs_from_json.nat_gateway_tags,
+    include.aws.locals.tags,
+    local.env_vars.locals.tags
+  ),
   eip_private_ip                         = local.inputs_from_json.eip_private_ip
   eip_tags                               = local.inputs_from_json.eip_tags
   public_route_cidr_block                = local.inputs_from_json.public_route_cidr_block
