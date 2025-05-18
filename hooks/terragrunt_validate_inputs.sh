@@ -11,7 +11,7 @@ echo "🔍 Finding changed Terragrunt files..."
 # Loop through all passed directories
 for file in "$@"; do
     # Only consider terragrunt.hcl files
-    if [[ "$file" == terragrunt.hcl ]]; then
+    if [[ "$file" == "terragrunt.hcl" ]]; then
         dir=$(dirname "$file")
 
         echo "Validating $dir..."
