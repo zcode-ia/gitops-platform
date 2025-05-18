@@ -1,4 +1,4 @@
-name: Terraform
+name: Terragrunt
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  terraform:
-    name: 'Terraform'
+  terragrunt:
+    name: 'Terragrunt'
     runs-on: ubuntu-latest
     services:
       localstack:
@@ -31,19 +31,20 @@ jobs:
       - name: Setup Repository
         run: |
           SKIP=enable_pre_commit ./bootstrap.sh
+          ls -lrt bin/
 
           # Extract the updated PATH and write it to GITHUB_ENV
           NEW_PATH=$(direnv exec . bash -c 'echo $PATH')
           echo "PATH=$NEW_PATH" >> $GITHUB_ENV
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./live
+      - name: Terragrunt Init
+        run: terragrunt run-all init --non-interactive
+        working-directory: ./live/prod
 
-      - name: Terraform Plan
-        run: terraform plan
-        working-directory: ./live
+      - name: Terragrunt Plan
+        run: terragrunt run-all plan --non-interactive
+        working-directory: ./live/prod
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
-        working-directory: ./live
+      - name: Terragrunt Apply
+        run: terragrunt run-all apply --non-interactive
+        working-directory: ./live/prod
