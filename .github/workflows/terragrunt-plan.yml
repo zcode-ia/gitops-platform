@@ -7,6 +7,10 @@ on:
     branches:
       - dev
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 jobs:
   terragrunt:
@@ -40,10 +44,12 @@ jobs:
       - name: Set Working Directory
         run: |
           if [[ "${{ github.base_ref }}" == "main" ]]; then
-            echo "WORKING_DIR=live/prod" >> $GITHUB_ENV
+            WORKING_DIR=live/prod
           else
-            echo "WORKING_DIR=live/${{ github.base_ref }}" >> $GITHUB_ENV
+            WORKING_DIR=live/${{ github.base_ref }}
           fi
+          echo "${WORKING_DIR}"
+          echo "WORKING_DIR=${WORKING_DIR}" >> $GITHUB_ENV
 
       # Step to fetch modified files from the pull request
       - name: List Modified Files
@@ -71,16 +77,60 @@ jobs:
         run: |
           # Count the number of modified files in the working directory
           WORKING_DIR_MODIFIED_FILES_COUNT=$(grep "${WORKING_DIR}" ${MODIFIED_FILES_NAME} | wc -l)
+
+          echo "Found ${WORKING_DIR_MODIFIED_FILES_COUNT} modified files in the ${WORKING_DIR} directory."
           echo "WORKING_DIR_MODIFIED_FILES_COUNT=$WORKING_DIR_MODIFIED_FILES_COUNT" >> $GITHUB_ENV
+
+      # Step to detect the parent directory of each modified file
+      - name: Detect Parent Directory to run terragrunt commands
+        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
+        run: |
+          # To store the parent dir of modified files
+          WORKING_PARENT_DIR=WORKING_PARENT_DIRs.txt
+
+          # Extract the parent of each modified file directory
+          grep "${WORKING_DIR}" ${MODIFIED_FILES_NAME} | sed -E 's|/[^/]+/[^/]+$|/|' | sort -u | tee ${WORKING_PARENT_DIR}
+
+          # Check if the parent directory is empty
+          if [ ! -s ${WORKING_PARENT_DIR} ]; then
+            echo "No modified files found in the working directory."
+            exit 0
+          fi
+
+          # Set the parent directories as an environment variable
+          WORKING_PARENT_DIRS=$(cat ${WORKING_PARENT_DIR} | tr '\n' ' ')
+          echo "WORKING_PARENT_DIRS=${WORKING_PARENT_DIRS}" >> $GITHUB_ENV
 
       # Step to initialize Terragrunt
       - name: Terragrunt Init
         if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
-        run: terragrunt run-all init --non-interactive
-        working-directory: ./${{ env.WORKING_DIR }}
+        run: |
+          for WORKING_PARENT_DIR in $WORKING_PARENT_DIRS; do
+            # Check if the directory exists
+            if [ -d "${WORKING_PARENT_DIR}" ]; then
+              echo "Initializing ${WORKING_PARENT_DIR}..."
+
+              # Initialize Terragrunt in the directory
+              terragrunt run-all init --non-interactive --working-dir "${WORKING_PARENT_DIR}"
+              echo
+            else
+              echo "Directory ${WORKING_PARENT_DIR} does not exist."
+            fi
+          done
 
       # Step to generate a Terragrunt plan
       - name: Terragrunt Plan
         if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
-        run: terragrunt run-all plan --non-interactive
-        working-directory: ./${{ env.WORKING_DIR }}
+        run: |
+          for WORKING_PARENT_DIR in $WORKING_PARENT_DIRS; do
+            # Check if the directory exists
+            if [ -d "${WORKING_PARENT_DIR}" ]; then
+              echo "Planning ${WORKING_PARENT_DIR}"
+
+              # Run Terragrunt plan in the directory
+              terragrunt run-all plan --non-interactive --working-dir "${WORKING_PARENT_DIR}"
+              echo
+            else
+              echo "Directory ${WORKING_PARENT_DIR} does not exist."
+            fi
+          done
