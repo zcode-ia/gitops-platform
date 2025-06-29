@@ -21,5 +21,11 @@ terraform {
   source = "${get_repo_root()}/modules/vpc"
 }
 
-# Load the JSON file containing the inputs for the module.
-inputs = jsondecode(file("${get_terragrunt_dir()}/vpc.json"))
+# Load the JSON file containing the inputs for the module and merge tags at runtime.
+inputs = {
+  for key, value in jsondecode(templatefile("${get_terragrunt_dir()}/data.json", {
+    environment_alias = include.aws.locals.environment_alias
+    aws_region        = include.aws.locals.aws_region
+  })) :
+  key => endswith(key, "_tags") ? merge(include.aws.locals.tags, value) : value
+}
