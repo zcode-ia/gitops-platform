@@ -84,12 +84,13 @@ jobs:
           FILTER: ${{ env.ENVIRONMENT_WORKING_DIR }}
           ENCODED_MODIFIED_FILES_TO_FILTER: ${{ env.ENCODED_MODIFIED_FILES }}
         run: |
-          # Files to store the modified files and the parent directories
-          FILTER_FILENAME=filter.txt
-          WORKING_PARENT_DIR_FILENAME=working_parent_dir.txt
+          # Filter modified files by environment working directory
 
-          # Decode the base64 encoded MODIFIED_FILES
-          echo "${ENCODED_MODIFIED_FILES_TO_FILTER}" | base64 -d > ${FILTER_FILENAME}
+          # File to store the filtered directories of modified files
+          FILTERED_WORKING_DIRS_FILENAME=filtered_working_dirs.txt
+
+          # Decode the base64 encoded MODIFIED_FILES and extract the parent folder
+          echo "${ENCODED_MODIFIED_FILES_TO_FILTER}" | base64 -d | grep "${FILTER}" | sed -E 's|/[^/]+/[^/]+$||' | sort -u | tee ${FILTERED_WORKING_DIRS_FILENAME}
 
           # Check if the parent directory is empty
           if [ ! -s ${FILTERED_WORKING_DIRS_FILENAME} ]; then
