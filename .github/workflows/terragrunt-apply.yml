@@ -91,15 +91,45 @@ jobs:
           # Decode the base64 encoded MODIFIED_FILES
           echo "${ENCODED_MODIFIED_FILES_TO_FILTER}" | base64 -d > ${FILTER_FILENAME}
 
-          # Extract the parent of each modified file directory
-          grep "${FILTER}" ${FILTER_FILENAME} | sed -E 's|/[^/]+/[^/]+$||' | sort -u | tee ${WORKING_PARENT_DIR_FILENAME}
-
           # Check if the parent directory is empty
-          if [ ! -s ${WORKING_PARENT_DIR_FILENAME} ]; then
+          if [ ! -s ${FILTERED_WORKING_DIRS_FILENAME} ]; then
             echo "No modified files found in the working directory."
-            WORKING_DIR_MODIFIED_FILES_COUNT=0
+            FILTERED_WORKING_DIRS_COUNT=0
             exit 0
           fi
+
+          # Remove any directory that is a subdirectory of another in the list (keep only shallowest parents)
+          mapfile -t dirs < "${FILTERED_WORKING_DIRS_FILENAME}"
+
+          # Only keep paths that are NOT exactly 'live'
+          filtered_dirs=()
+          for dir in "${dirs[@]}"; do
+            [[ "$dir" == "live" ]] && continue
+            filtered_dirs+=("$dir")
+          done
+
+          unique_dirs=()
+          for dir in "${filtered_dirs[@]}"; do
+            skip=
+            for other in "${filtered_dirs[@]}"; do
+              if [[ "$dir" != "$other" && "$dir" == "$other/"* ]]; then
+                skip=1
+                break
+              fi
+            done
+            [[ -z "$skip" ]] && unique_dirs+=("$dir")
+          done
+
+          if [ "${#unique_dirs[@]}" -eq 0 ]; then
+            echo "No working directories found after filtering."
+            FILTERED_WORKING_DIRS_COUNT=0
+            exit 0
+          fi
+
+          echo "Final filtered working directories:"
+          for dir in "${unique_dirs[@]}"; do
+            echo "$dir"
+          done
 
           # Count the number of modified files in the working directory
           WORKING_DIR_MODIFIED_FILES_COUNT=$(wc -l "${WORKING_PARENT_DIR_FILENAME}" | awk '{print $1}')
