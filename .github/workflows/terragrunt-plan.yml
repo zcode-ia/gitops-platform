@@ -1,0 +1,136 @@
+name: Terragrunt Plan
+# This workflow is triggered when a pull request is opened or updated
+# It checks for modified files in the working directory and generates a Terragrunt plan if there are changes
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  terragrunt:
+    name: 'Terragrunt Plan'
+    runs-on: ubuntu-latest
+    services:
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4566:4566
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step to install necessary dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip direnv
+
+      # Step to setup the repository
+      - name: Setup Repository
+        run: |
+          SKIP=enable_pre_commit ./bootstrap.sh
+
+          # Extract the updated PATH and write it to GITHUB_ENV
+          NEW_PATH=$(direnv exec . bash -c 'echo $PATH')
+          echo "PATH=$NEW_PATH" >> $GITHUB_ENV
+
+      # Determine the working directory based on the branch name
+      - name: Set Working Directory
+        run: |
+          if [[ "${{ github.base_ref }}" == "main" ]]; then
+            WORKING_DIR=live/prod
+          else
+            WORKING_DIR=live/${{ github.base_ref }}
+          fi
+          echo "${WORKING_DIR}"
+          echo "WORKING_DIR=${WORKING_DIR}" >> $GITHUB_ENV
+
+      # Step to fetch modified files from the pull request
+      - name: List Modified Files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # File to store the modified files
+          MODIFIED_FILES_NAME=modified_files.txt
+
+          # Use the GitHub API to fetch the list of modified files
+          API_RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files)
+
+          # Check if the API response is valid JSON
+          echo "$API_RESPONSE" | jq empty || { echo "Invalid API response: $API_RESPONSE"; exit 1; }
+
+          # Extract the filenames from the API response
+          echo "$API_RESPONSE" | jq -r '.[].filename' | tee "${MODIFIED_FILES_NAME}" || exit 1
+
+          echo "MODIFIED_FILES_NAME=${MODIFIED_FILES_NAME}" >> $GITHUB_ENV
+
+      # Step to count the modified files from the pull request
+      - name: Count Modified Files
+        run: |
+          # Count the number of modified files in the working directory
+          WORKING_DIR_MODIFIED_FILES_COUNT=$(grep "${WORKING_DIR}" ${MODIFIED_FILES_NAME} | wc -l)
+
+          echo "Found ${WORKING_DIR_MODIFIED_FILES_COUNT} modified files in the ${WORKING_DIR} directory."
+          echo "WORKING_DIR_MODIFIED_FILES_COUNT=$WORKING_DIR_MODIFIED_FILES_COUNT" >> $GITHUB_ENV
+
+      # Step to detect the parent directory of each modified file
+      - name: Detect Parent Directory to run terragrunt commands
+        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
+        run: |
+          # To store the parent dir of modified files
+          WORKING_PARENT_DIR=WORKING_PARENT_DIRs.txt
+
+          # Extract the parent of each modified file directory
+          grep "${WORKING_DIR}" ${MODIFIED_FILES_NAME} | sed -E 's|/[^/]+/[^/]+$|/|' | sort -u | tee ${WORKING_PARENT_DIR}
+
+          # Check if the parent directory is empty
+          if [ ! -s ${WORKING_PARENT_DIR} ]; then
+            echo "No modified files found in the working directory."
+            exit 0
+          fi
+
+          # Set the parent directories as an environment variable
+          WORKING_PARENT_DIRS=$(cat ${WORKING_PARENT_DIR} | tr '\n' ' ')
+          echo "WORKING_PARENT_DIRS=${WORKING_PARENT_DIRS}" >> $GITHUB_ENV
+
+      # Step to initialize Terragrunt
+      - name: Terragrunt Init
+        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
+        run: |
+          for WORKING_PARENT_DIR in $WORKING_PARENT_DIRS; do
+            # Check if the directory exists
+            if [ -d "${WORKING_PARENT_DIR}" ]; then
+              echo "Initializing ${WORKING_PARENT_DIR}..."
+
+              # Initialize Terragrunt in the directory
+              terragrunt run-all init --non-interactive --working-dir "${WORKING_PARENT_DIR}"
+              echo
+            else
+              echo "Directory ${WORKING_PARENT_DIR} does not exist."
+            fi
+          done
+
+      # Step to generate a Terragrunt plan
+      - name: Terragrunt Plan
+        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
+        run: |
+          for WORKING_PARENT_DIR in $WORKING_PARENT_DIRS; do
+            # Check if the directory exists
+            if [ -d "${WORKING_PARENT_DIR}" ]; then
+              echo "Planning ${WORKING_PARENT_DIR}"
+
+              # Run Terragrunt plan in the directory
+              terragrunt run-all plan --non-interactive --working-dir "${WORKING_PARENT_DIR}"
+              echo
+            else
+              echo "Directory ${WORKING_PARENT_DIR} does not exist."
+            fi
+          done
