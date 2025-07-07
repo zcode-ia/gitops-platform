@@ -40,97 +40,179 @@ jobs:
           NEW_PATH=$(direnv exec . bash -c 'echo $PATH')
           echo "PATH=$NEW_PATH" >> $GITHUB_ENV
 
-      # Determine the working directory based on the branch name
-      - name: Set Working Directory
+      # Determine the environment working directory based on the branch name
+      - name: Set Environment Working Directory
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
-          if [[ "${{ github.base_ref }}" == "main" ]]; then
-            WORKING_DIR=live/prod
+          if [[ "$GITHUB_BASE_REF" == "main" ]]; then
+            ENVIRONMENT_WORKING_DIR=live/prod
           else
-            WORKING_DIR=live/${{ github.base_ref }}
+            ENVIRONMENT_WORKING_DIR=live/$GITHUB_BASE_REF
           fi
-          echo "${WORKING_DIR}"
-          echo "WORKING_DIR=${WORKING_DIR}" >> $GITHUB_ENV
+          echo "${ENVIRONMENT_WORKING_DIR}"
+          echo "ENVIRONMENT_WORKING_DIR=${ENVIRONMENT_WORKING_DIR}" >> $GITHUB_ENV
 
       # Step to fetch modified files from the pull request
       - name: List Modified Files
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # File to store the modified files
-          MODIFIED_FILES_NAME=modified_files.txt
+          MODIFIED_FILES_FILENAME=modified_files.txt
 
           # Use the GitHub API to fetch the list of modified files
           API_RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files)
+            https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$GITHUB_EVENT_PULL_REQUEST_NUMBER/files)
 
           # Check if the API response is valid JSON
           echo "$API_RESPONSE" | jq empty || { echo "Invalid API response: $API_RESPONSE"; exit 1; }
 
           # Extract the filenames from the API response
-          echo "$API_RESPONSE" | jq -r '.[].filename' | tee "${MODIFIED_FILES_NAME}" || exit 1
+          echo "$API_RESPONSE" | jq -r '.[].filename' | tee "${MODIFIED_FILES_FILENAME}" || exit 1
 
-          echo "MODIFIED_FILES_NAME=${MODIFIED_FILES_NAME}" >> $GITHUB_ENV
+          # Set the modified files as an environment variable and convert to base64 to avoid issues with special characters and newlines
+          ENCODED_MODIFIED_FILES=$(cat ${MODIFIED_FILES_FILENAME} | base64 -w 0)
+          echo "ENCODED_MODIFIED_FILES=${ENCODED_MODIFIED_FILES}" >> $GITHUB_ENV
 
-      # Step to count the modified files from the pull request
-      - name: Count Modified Files
+      # Step to filter modified files by environment working directory
+      - name: Filter Modified Files
+        env:
+          FILTER: ${{ env.ENVIRONMENT_WORKING_DIR }}
+          ENCODED_MODIFIED_FILES_TO_FILTER: ${{ env.ENCODED_MODIFIED_FILES }}
         run: |
-          # Count the number of modified files in the working directory
-          WORKING_DIR_MODIFIED_FILES_COUNT=$(grep "${WORKING_DIR}" ${MODIFIED_FILES_NAME} | wc -l)
+          # Filter modified files by environment working directory
 
-          echo "Found ${WORKING_DIR_MODIFIED_FILES_COUNT} modified files in the ${WORKING_DIR} directory."
-          echo "WORKING_DIR_MODIFIED_FILES_COUNT=$WORKING_DIR_MODIFIED_FILES_COUNT" >> $GITHUB_ENV
+          # File to store the filtered directories of modified files
+          FILTERED_WORKING_DIRS_FILENAME=filtered_working_dirs.txt
 
-      # Step to detect the parent directory of each modified file
-      - name: Detect Parent Directory to run terragrunt commands
-        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
-        run: |
-          # To store the parent dir of modified files
-          WORKING_PARENT_DIR=WORKING_PARENT_DIRs.txt
-
-          # Extract the parent of each modified file directory
-          grep "${WORKING_DIR}" ${MODIFIED_FILES_NAME} | sed -E 's|/[^/]+/[^/]+$|/|' | sort -u | tee ${WORKING_PARENT_DIR}
+          # Decode the base64 encoded MODIFIED_FILES and extract the parent folder
+          echo "${ENCODED_MODIFIED_FILES_TO_FILTER}" | base64 -d | grep "${FILTER}" | sed -E 's|/[^/]+/[^/]+$||' | sort -u | tee ${FILTERED_WORKING_DIRS_FILENAME}
 
           # Check if the parent directory is empty
-          if [ ! -s ${WORKING_PARENT_DIR} ]; then
+          if [ ! -s ${FILTERED_WORKING_DIRS_FILENAME} ]; then
             echo "No modified files found in the working directory."
+            FILTERED_WORKING_DIRS_COUNT=0
             exit 0
           fi
 
-          # Set the parent directories as an environment variable
-          WORKING_PARENT_DIRS=$(cat ${WORKING_PARENT_DIR} | tr '\n' ' ')
-          echo "WORKING_PARENT_DIRS=${WORKING_PARENT_DIRS}" >> $GITHUB_ENV
+          # Remove any directory that is a subdirectory of another in the list (keep only shallowest parents)
+          mapfile -t dirs < "${FILTERED_WORKING_DIRS_FILENAME}"
+
+          # Only keep paths that are NOT exactly 'live'
+          filtered_dirs=()
+          for dir in "${dirs[@]}"; do
+            [[ "$dir" == "live" ]] && continue
+            filtered_dirs+=("$dir")
+          done
+
+          unique_dirs=()
+          for dir in "${filtered_dirs[@]}"; do
+            skip=
+            for other in "${filtered_dirs[@]}"; do
+              if [[ "$dir" != "$other" && "$dir" == "$other/"* ]]; then
+                skip=1
+                break
+              fi
+            done
+            [[ -z "$skip" ]] && unique_dirs+=("$dir")
+          done
+
+          if [ "${#unique_dirs[@]}" -eq 0 ]; then
+            echo "No working directories found after filtering."
+            FILTERED_WORKING_DIRS_COUNT=0
+            exit 0
+          fi
+
+          echo "Final filtered working directories:"
+          for dir in "${unique_dirs[@]}"; do
+            echo "$dir"
+          done
+
+          # Count the number of modified files in the working directory
+          WORKING_DIR_MODIFIED_FILES_COUNT=$(wc -l "${WORKING_PARENT_DIR_FILENAME}" | awk '{print $1}')
+          echo "Found ${WORKING_DIR_MODIFIED_FILES_COUNT} directory(ies) to be processed in ${FILTER}."
+
+          # Set the parent directories as an environment variable and convert to base64 to avoid issues with special characters and newlines
+          ENCODED_WORKING_PARENT_DIRS=$(cat ${WORKING_PARENT_DIR_FILENAME} | base64 -w 0)
+
+          echo "WORKING_DIR_MODIFIED_FILES_COUNT=$WORKING_DIR_MODIFIED_FILES_COUNT" >> $GITHUB_ENV
+          echo "ENCODED_WORKING_PARENT_DIRS=${ENCODED_WORKING_PARENT_DIRS}" >> $GITHUB_ENV
 
       # Step to initialize Terragrunt
       - name: Terragrunt Init
         if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
+        env:
+          ENCODED_WORKING_DIRS: ${{ env.ENCODED_WORKING_PARENT_DIRS }}
         run: |
-          for WORKING_PARENT_DIR in $WORKING_PARENT_DIRS; do
+          for WORKING_DIR in $(echo "${ENCODED_WORKING_DIRS}" | base64 -d); do
             # Check if the directory exists
-            if [ -d "${WORKING_PARENT_DIR}" ]; then
-              echo "Initializing ${WORKING_PARENT_DIR}..."
+            if [ -d "${WORKING_DIR}" ]; then
+              echo "Initializing ${WORKING_DIR}..."
 
               # Initialize Terragrunt in the directory
-              terragrunt run-all init --non-interactive --working-dir "${WORKING_PARENT_DIR}"
+              terragrunt run-all init --non-interactive --working-dir "${WORKING_DIR}"
               echo
             else
-              echo "Directory ${WORKING_PARENT_DIR} does not exist."
+              echo "Directory ${WORKING_DIR} does not exist."
             fi
           done
 
       # Step to perform a Terragrunt apply
       - name: Terragrunt Apply
         if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
+        env:
+          ENCODED_WORKING_DIRS: ${{ env.ENCODED_WORKING_PARENT_DIRS }}
         run: |
-          for WORKING_PARENT_DIR in $WORKING_PARENT_DIRS; do
-            # Check if the directory exists
-            if [ -d "${WORKING_PARENT_DIR}" ]; then
-              echo "Applying ${WORKING_PARENT_DIR}..."
+          # File to store the terragrunt apply output
+          TERRAGRUNT_APPLY_OUTPUT_FILENAME=terragrunt_output.txt
 
-              # Initialize Terragrunt in the directory
-              terragrunt run-all apply --non-interactive --working-dir "${WORKING_PARENT_DIR}"
+          # Initialize a variable to store all plan outputs
+          COMMENT_OUTPUTS="Show apply result for the following directories:\n\n"
+
+          for WORKING_DIR in $(echo "${ENCODED_WORKING_DIRS}" | base64 -d); do
+            # Check if the directory exists
+            if [ -d "${WORKING_DIR}" ]; then
+              # Adding the directory name to the plan output
+              COMMENT_OUTPUTS="${COMMENT_OUTPUTS}<details><summary>${WORKING_DIR}</summary>\n"
+
+              echo "Applying ${WORKING_DIR}..."
+
+              # Run Terragrunt apply in the directory
+              terragrunt run-all apply --non-interactive --working-dir "${WORKING_DIR}" 2>&1 | tee "${TERRAGRUNT_APPLY_OUTPUT_FILENAME}"
               echo
+
+              # Capture the terragrunt apply output and store it in a variable
+              APPLY_OUTPUT=$(cat "${TERRAGRUNT_APPLY_OUTPUT_FILENAME}")
+
+              # Append the apply output to the aggregated variable
+              COMMENT_OUTPUTS="${COMMENT_OUTPUTS}\n\n<pre>${APPLY_OUTPUT}</pre>\n</details>"
             else
-              echo "Directory ${WORKING_PARENT_DIR} does not exist."
+              echo "Directory ${WORKING_DIR} does not exist."
             fi
           done
+
+          echo "All apply outputs: ${COMMENT_OUTPUTS}"
+
+          # Escape the content of COMMENT_OUTPUTS for JSON and convert to base64 to avoid issues with special characters and newlines
+          ENCODED_COMMENT_OUTPUTS=$(echo -e "$COMMENT_OUTPUTS" | jq -Rsa . | base64 -w 0)
+          echo "ENCODED_COMMENT_OUTPUTS=${ENCODED_COMMENT_OUTPUTS}" >> $GITHUB_ENV
+
+      # Step to post the output to the Pull Request
+      - name: Post Comment
+        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          BODY_MESSAGE_ENCODED: ${{ env.ENCODED_PLAN_OUTPUT }}
+        run: |
+          BODY_MESSAGE=$(echo "${BODY_MESSAGE_ENCODED}" | base64 -d)
+          # Post the output as a single comment to the Pull Request
+          curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$GITHUB_EVENT_PULL_REQUEST_NUMBER/comments \
+            -d "{\"body\": $BODY_MESSAGE}" || { echo "Failed to post comment"; exit 1; }
