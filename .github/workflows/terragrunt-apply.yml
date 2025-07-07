@@ -132,15 +132,15 @@ jobs:
             echo "$dir"
           done
 
-          # Count the number of modified files in the working directory
-          WORKING_DIR_MODIFIED_FILES_COUNT=$(wc -l "${WORKING_PARENT_DIR_FILENAME}" | awk '{print $1}')
-          echo "Found ${WORKING_DIR_MODIFIED_FILES_COUNT} directory(ies) to be processed in ${FILTER}."
+          # Count the working directories to be processed
+          FILTERED_WORKING_DIRS_COUNT=${#unique_dirs[@]}
+          echo "Found ${FILTERED_WORKING_DIRS_COUNT} directory(ies) to be processed in ${FILTER}."
 
-          # Set the parent directories as an environment variable and convert to base64 to avoid issues with special characters and newlines
-          ENCODED_WORKING_PARENT_DIRS=$(cat ${WORKING_PARENT_DIR_FILENAME} | base64 -w 0)
+          # Set the working directories and convert to base64 to avoid issues with special characters and newlines
+          ENCODED_FILTERED_WORKING_DIRS=$(printf "%s\n" "${unique_dirs[@]}" | base64 -w 0)
 
-          echo "WORKING_DIR_MODIFIED_FILES_COUNT=$WORKING_DIR_MODIFIED_FILES_COUNT" >> $GITHUB_ENV
-          echo "ENCODED_WORKING_PARENT_DIRS=${ENCODED_WORKING_PARENT_DIRS}" >> $GITHUB_ENV
+          echo "WORKING_DIR_MODIFIED_FILES_COUNT=$FILTERED_WORKING_DIRS_COUNT" >> $GITHUB_ENV
+          echo "ENCODED_WORKING_PARENT_DIRS=${ENCODED_FILTERED_WORKING_DIRS}" >> $GITHUB_ENV
 
       # Step to initialize Terragrunt
       - name: Terragrunt Init
@@ -208,7 +208,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          BODY_MESSAGE_ENCODED: ${{ env.ENCODED_PLAN_OUTPUT }}
+          BODY_MESSAGE_ENCODED: ${{ env.ENCODED_COMMENT_OUTPUTS }}
         run: |
           BODY_MESSAGE=$(echo "${BODY_MESSAGE_ENCODED}" | base64 -d)
           # Post the output as a single comment to the Pull Request
