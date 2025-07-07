@@ -23,8 +23,13 @@ terraform {
 
 # Include the app global variables.
 locals {
-  # Load the global variables.
-  tags = include.aws.locals.tags
+  # Load the environment global variables.
+  app_vars         = read_terragrunt_config(find_in_parent_folders("app.hcl"))
+  application_name = local.app_vars.locals.vars.application_name
+  tags = merge(
+    include.aws.locals.tags,
+    local.app_vars.locals.vars
+  )
 }
 
 # Load the JSON file containing the inputs for the module and merge tags at runtime.
@@ -34,6 +39,7 @@ inputs = merge(
     for key, value in jsondecode(templatefile("${get_terragrunt_dir()}/data.json", {
       environment_alias = include.aws.locals.environment_alias
       aws_region        = include.aws.locals.aws_region
+      application_name  = local.application_name
     })) :
     key => (
       # For any top-level key that ends with "tags", merge shared/common tags with the original value.
