@@ -1,6 +1,6 @@
 name: Terragrunt Apply
-# This workflow is triggered when a pull request is closed and merged
-# It checks for modified files in the working directory and applies Terragrunt if there are changes
+# This workflow is triggered when a pull request is closed.
+# It checks for modified files in the working directory and apply terragrunt.
 
 on:
   pull_request:
@@ -11,320 +11,68 @@ on:
       - closed
 
 jobs:
-  terragrunt:
-    name: 'Terragrunt Apply'
-    runs-on: ubuntu-latest
-    services:
-      localstack:
-        image: localstack/localstack:latest
-        ports:
-          - 4566:4566
-    if: ${{ github.event.pull_request.merged == true }} # Only run if the pull request was merged
-    steps:
-      # Step to checkout the code
-      - name: Checkout code
-        uses: actions/checkout@v4
+  terragrunt_set_environment:
+    name: Set Environment
+    if: github.event.pull_request.merged == true
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-set-environment.yml@main
+    with:
+      github_base_ref: ${{ github.base_ref }}
 
-      # Step to install necessary dependencies
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip direnv
+  github_list_pr_files:
+    name: List Modified Files
+    if: github.event.pull_request.merged == true
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-list-pr-files.yml@main
+    with:
+      github_repository: ${{ github.repository }}
+      github_event_pull_request_number: ${{ github.event.pull_request.number }}
+    secrets:
+      github_secret_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step to setup the repository
-      - name: Setup Repository
-        run: |
-          SKIP=enable_pre_commit ./bootstrap.sh
+  terragrunt_filter_working_dir:
+    name: Filter Working Directory
+    needs:
+      - terragrunt_set_environment
+      - github_list_pr_files
+    if: github.event.pull_request.merged == true && needs.github_list_pr_files.outputs.pr_files_count > 0
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-filter-working-dir.yml@main
+    with:
+      working_directory_filter: ${{ needs.terragrunt_set_environment.outputs.working_dir }}
+      encoded_modified_files_to_filter: ${{ needs.github_list_pr_files.outputs.encoded_modified_files }}
 
-          # Extract the updated PATH and write it to GITHUB_ENV
-          NEW_PATH=$(direnv exec . bash -c 'echo $PATH')
-          echo "PATH=$NEW_PATH" >> $GITHUB_ENV
+  terragrunt_apply:
+    name: Terragrunt Apply
+    needs: terragrunt_filter_working_dir
+    if: needs.terragrunt_filter_working_dir.outputs.working_dirs_count > 0
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-apply.yml@main
+    with:
+      encoded_working_dirs: ${{ needs.terragrunt_filter_working_dir.outputs.encoded_working_dirs }}
+      github_workspace: ${{ github.workspace }}
+      github_run_id: ${{ github.run_id }}
+      github_event_pull_request_number: ${{ github.event.pull_request.number }}
 
-      # Determine the environment working directory based on the branch name
-      - name: Set Environment Working Directory
-        env:
-          GITHUB_BASE_REF: ${{ github.base_ref }}
-        run: |
-          if [[ "$GITHUB_BASE_REF" == "main" ]]; then
-            ENVIRONMENT_WORKING_DIR=live/prod
-          else
-            ENVIRONMENT_WORKING_DIR=live/$GITHUB_BASE_REF
-          fi
-          echo "${ENVIRONMENT_WORKING_DIR}"
-          echo "ENVIRONMENT_WORKING_DIR=${ENVIRONMENT_WORKING_DIR}" >> $GITHUB_ENV
+  github_post_comment:
+    name: Github Post Comment
+    needs:
+      - terragrunt_filter_working_dir
+      - terragrunt_apply
+    if: needs.terragrunt_filter_working_dir.outputs.working_dirs_count > 0
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-post-comment.yml@main
+    with:
+      github_repository: ${{ github.repository }}
+      github_event_pull_request_number: ${{ github.event.pull_request.number }}
+      encoded_comment_title: ${{ needs.terragrunt_apply.outputs.encoded_comment_title }}
+      encoded_comment_outputs: ${{ needs.terragrunt_apply.outputs.encoded_comment_outputs }}
+      artifact_id: ${{ needs.terragrunt_apply.outputs.artifact_id }}
+      artifact_url: ${{ needs.terragrunt_apply.outputs.artifact_url }}
+    secrets:
+      github_secret_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step to fetch modified files from the pull request
-      - name: List Modified Files
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          # File to store the modified files
-          MODIFIED_FILES_FILENAME=modified_files.txt
-
-          # Use the GitHub API to fetch the list of modified files
-          API_RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$GITHUB_EVENT_PULL_REQUEST_NUMBER/files)
-
-          # Check if the API response is valid JSON
-          echo "$API_RESPONSE" | jq empty || { echo "Invalid API response: $API_RESPONSE"; exit 1; }
-
-          # Extract the filenames from the API response
-          echo "$API_RESPONSE" | jq -r '.[].filename' | tee "${MODIFIED_FILES_FILENAME}" || exit 1
-
-          # Set the modified files as an environment variable and convert to base64 to avoid issues with special characters and newlines
-          ENCODED_MODIFIED_FILES=$(cat ${MODIFIED_FILES_FILENAME} | base64 -w 0)
-          echo "ENCODED_MODIFIED_FILES=${ENCODED_MODIFIED_FILES}" >> $GITHUB_ENV
-
-      # Step to filter modified files by environment working directory
-      - name: Filter Modified Files
-        env:
-          FILTER: ${{ env.ENVIRONMENT_WORKING_DIR }}
-          ENCODED_MODIFIED_FILES_TO_FILTER: ${{ env.ENCODED_MODIFIED_FILES }}
-        run: |
-          # Filter modified files by environment working directory
-
-          # File to store the filtered directories of modified files
-          FILTERED_WORKING_DIRS_FILENAME=filtered_working_dirs.txt
-
-          # Decode the base64 encoded MODIFIED_FILES and extract the parent folder
-          echo "${ENCODED_MODIFIED_FILES_TO_FILTER}" | base64 -d | grep "${FILTER}" | sed -E 's|/[^/]+/[^/]+$||' | sort -u | tee ${FILTERED_WORKING_DIRS_FILENAME}
-
-          # Check if the parent directory is empty
-          if [ ! -s ${FILTERED_WORKING_DIRS_FILENAME} ]; then
-            echo "No modified files found in the working directory."
-            FILTERED_WORKING_DIRS_COUNT=0
-            exit 0
-          fi
-
-          # Remove any directory that is a subdirectory of another in the list (keep only shallowest parents)
-          mapfile -t dirs < "${FILTERED_WORKING_DIRS_FILENAME}"
-
-          # Only keep paths that are NOT exactly 'live'
-          filtered_dirs=()
-          for dir in "${dirs[@]}"; do
-            [[ "$dir" == "live" ]] && continue
-            filtered_dirs+=("$dir")
-          done
-
-          unique_dirs=()
-          for dir in "${filtered_dirs[@]}"; do
-            skip=
-            for other in "${filtered_dirs[@]}"; do
-              if [[ "$dir" != "$other" && "$dir" == "$other/"* ]]; then
-                skip=1
-                break
-              fi
-            done
-            [[ -z "$skip" ]] && unique_dirs+=("$dir")
-          done
-
-          if [ "${#unique_dirs[@]}" -eq 0 ]; then
-            echo "No working directories found after filtering."
-            FILTERED_WORKING_DIRS_COUNT=0
-            exit 0
-          fi
-
-          echo "Final filtered working directories:"
-          for dir in "${unique_dirs[@]}"; do
-            echo "$dir"
-          done
-
-          # Count the working directories to be processed
-          FILTERED_WORKING_DIRS_COUNT=${#unique_dirs[@]}
-          echo "Found ${FILTERED_WORKING_DIRS_COUNT} directory(ies) to be processed in ${FILTER}."
-
-          # Set the working directories and convert to base64 to avoid issues with special characters and newlines
-          ENCODED_FILTERED_WORKING_DIRS=$(printf "%s\n" "${unique_dirs[@]}" | base64 -w 0)
-
-          echo "WORKING_DIR_MODIFIED_FILES_COUNT=$FILTERED_WORKING_DIRS_COUNT" >> $GITHUB_ENV
-          echo "ENCODED_WORKING_PARENT_DIRS=${ENCODED_FILTERED_WORKING_DIRS}" >> $GITHUB_ENV
-
-      # Step to initialize Terragrunt
-      - name: Terragrunt Init
-        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
-        env:
-          ENCODED_WORKING_DIRS: ${{ env.ENCODED_WORKING_PARENT_DIRS }}
-        run: |
-          for WORKING_DIR in $(echo "${ENCODED_WORKING_DIRS}" | base64 -d); do
-            # Check if the directory exists
-            if [ -d "${WORKING_DIR}" ]; then
-              echo "Initializing ${WORKING_DIR}..."
-
-              # Initialize Terragrunt in the directory
-              terragrunt run-all init --non-interactive --working-dir "${WORKING_DIR}"
-              echo
-            else
-              echo "Directory ${WORKING_DIR} does not exist."
-            fi
-          done
-
-      # Step to perform a Terragrunt apply
-      - name: Terragrunt Apply
-        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
-        id: main
-        env:
-          ENCODED_WORKING_DIRS: ${{ env.ENCODED_WORKING_PARENT_DIRS }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          # Run Terragrunt apply
-
-          # File to store the output
-          TERRAGRUNT_RUNALL_OUTPUT_FILENAME=terragrunt_runall_output.txt
-          ARTIFACT_PATH_FILENAME="${GITHUB_WORKSPACE}/${GITHUB_EVENT_PULL_REQUEST_NUMBER}-${GITHUB_RUN_ID}-output.txt"
-
-          # Initialize variables to store title and all apply outputs
-          COMMENT_TITLE="## Apply result\n\n"
-          COMMENT_OUTPUTS="Show apply for the following directories:\n\n"
-
-          # Decode the base64 encoded working directories
-          for WORKING_DIR in $(echo "${ENCODED_WORKING_DIRS}" | base64 -d); do
-            # Check if the working directory exists
-            if [ -d "${WORKING_DIR}" ]; then
-              # Adding the directory name to the output
-              COMMENT_OUTPUTS="${COMMENT_OUTPUTS}<details><summary>${WORKING_DIR}</summary>\n"
-
-              # Run Terragrunt init in the directory
-              terragrunt run-all init --non-interactive --no-color --working-dir "${WORKING_DIR}"
-
-              # Run Terragrunt apply in the directory
-              terragrunt run-all apply --non-interactive --no-color --working-dir "${WORKING_DIR}" 2>&1 | tee "${TERRAGRUNT_RUNALL_OUTPUT_FILENAME}"
-
-              echo >> "${ARTIFACT_PATH_FILENAME}"
-              # Extract the apply header from the output
-              cat "${TERRAGRUNT_RUNALL_OUTPUT_FILENAME}" | sed -E 's/^.*(The stack at .*)/\1/' | sed -E 's/^.*\[(.*)\].*terraform:\s?/\[\1\] : /' >> "${ARTIFACT_PATH_FILENAME}"
-
-              APPLY_OUTPUT=$(cat "${ARTIFACT_PATH_FILENAME}")
-              COMMENT_OUTPUTS="${COMMENT_OUTPUTS}\n\n<pre>${APPLY_OUTPUT}</pre>\n</details>"
-              echo
-            else
-              echo "Directory ${WORKING_DIR} does not exist."
-            fi
-          done
-
-          if [ ! -f ${TERRAGRUNT_RUNALL_OUTPUT_FILENAME} ]; then
-            # Set variables to warning no plan was generated
-            COMMENT_TITLE="## Apply result\n\n"
-            COMMENT_OUTPUTS="No apply was performed. Check pipeline logs for more details.\n\n"
-            echo "comment_status=pass" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Convert to base64 to avoid issues with special characters and newlines
-          ENCODED_COMMENT_TITLE=$(echo -e "$COMMENT_TITLE" | jq -Rsa . | base64 -w 0)
-          echo "encoded_comment_title=${ENCODED_COMMENT_TITLE}" >> $GITHUB_OUTPUT
-
-          if [[ ${#COMMENT_OUTPUTS} -gt 65536 ]]; then
-            echo "Comment output exceeds 65536 characters, the artifact file will be uploaded..."
-            # Grouping the prefix and ordering the output file
-             awk '
-              /^\[[^]]+\]/ {
-                prefix = substr($0, 1, index($0, "]"))
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", prefix)
-                if (!(prefix in seen)) {
-                  seen[prefix] = 1
-                  order[++count] = prefix
-                }
-                data[prefix] = data[prefix] $0 "\n"
-              }
-              END {
-                for (i = 1; i <= count; i++) {
-                  pf = order[i]
-                  print "### " pf
-                  printf "%s", data[pf]
-                  print ""
-                }
-              }
-            ' "${ARTIFACT_PATH_FILENAME}" > "${ARTIFACT_PATH_FILENAME}.ordered"
-            cp -f "${ARTIFACT_PATH_FILENAME}.ordered" "${ARTIFACT_PATH_FILENAME}"
-            echo "artifact_path_filename=${ARTIFACT_PATH_FILENAME}" >> $GITHUB_OUTPUT
-            COMMENT_OUTPUTS="Content too long for github comments."
-            ENCODED_COMMENT_OUTPUTS=$(echo -e "$COMMENT_OUTPUTS" | jq -Rsa . | base64 -w 0)
-            echo "encoded_comment_outputs=${ENCODED_COMMENT_OUTPUTS}" >> $GITHUB_OUTPUT
-            echo "comment_status=fallback" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Escape the content of COMMENT_OUTPUTS for JSON and convert to base64 to avoid issues with special characters and newlines
-          ENCODED_COMMENT_OUTPUTS=$(echo -e "$COMMENT_OUTPUTS" | jq -Rsa . | base64 -w 0)
-          echo "encoded_comment_outputs=${ENCODED_COMMENT_OUTPUTS}" >> $GITHUB_OUTPUT
-
-          echo "comment_status=pass" >> $GITHUB_OUTPUT
-
-          # Search for Error message in the output file
-          if grep -q "STDERR" "${TERRAGRUNT_RUNALL_OUTPUT_FILENAME}"; then
-            echo "Error found in the output, failing the job..."
-            exit 1
-          fi
-        # to ensure comment postage even if this step fails
-        continue-on-error: true
-
-      # Step to upload the comment contents as an artifact if the comment is too long
-      - name: Upload Comment Contents
-        id: upload_comment
-        if: steps.main.outputs.comment_status == 'fallback'
-        uses: actions/upload-artifact@v4
-        with:
-          path: ${{ steps.main.outputs.artifact_path_filename }}
-          retention-days: 5
-          overwrite: true
-
-      - name: Add Artifact References
-        id: add_artifact_references
-        if: steps.upload_comment.outputs.artifact-id != ''
-        env:
-          GITHUB_ARTIFACT_ID: ${{ steps.upload_comment.outputs.artifact-id }}
-          GITHUB_ARTIFACT_URL: ${{ steps.upload_comment.outputs.artifact-url }}
-        run: |
-          # Add artifact references to the comment
-
-          ARTIFACT_COMMENT="Please, download the artifact here: [${GITHUB_ARTIFACT_ID}](${GITHUB_ARTIFACT_URL})"
-          echo "artifact_comment=${ARTIFACT_COMMENT}" >> $GITHUB_OUTPUT
-
-      - name: Post Comment
-        if: env.WORKING_DIR_MODIFIED_FILES_COUNT > 0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          ENCODED_COMMENT_TITLE: ${{ steps.main.outputs.encoded_comment_title }}
-          ENCODED_COMMENT_OUTPUTS: ${{ steps.main.outputs.encoded_comment_outputs }}
-          ARTIFACT_COMMENT: ${{ steps.add_artifact_references.outputs.artifact_comment }}
-        run: |
-          # Post the output to the Pull Request comment
-
-          COMMENT_TITLE=$(echo "${ENCODED_COMMENT_TITLE}" | base64 -d | jq -r .)
-          COMMENT_OUTPUTS=$(echo "${ENCODED_COMMENT_OUTPUTS}" | base64 -d | jq -r .)
-
-          if [ -n "$ARTIFACT_COMMENT" ]; then
-            COMMENT_OUTPUTS="${COMMENT_OUTPUTS}\n\n${ARTIFACT_COMMENT}"
-          fi
-
-          BODY_MESSAGE=$(echo -e "${COMMENT_TITLE}\n\n${COMMENT_OUTPUTS}")
-
-          # Prepare the JSON payload safely
-          BODY_PAYLOAD=$(jq -nc --arg body "$BODY_MESSAGE" '{body: $body}')
-
-          # Create a temporary file to store the HTTP response
-          HTTP_RESPONSE=$(mktemp)
-
-          # Post the output as a single comment to the Pull Request
-          STATUS_RESPONSE=$(curl -s -o "$HTTP_RESPONSE" -X POST -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$GITHUB_EVENT_PULL_REQUEST_NUMBER/comments \
-            -d "$BODY_PAYLOAD" -w "%{http_code}")
-
-          if [[ "$STATUS_RESPONSE" =~ ^2 ]]; then
-            echo "Request succeeded with status: $STATUS_RESPONSE"
-          else
-            echo "Request failed with status: $STATUS_RESPONSE"
-            cat "$HTTP_RESPONSE"
-            exit 1
-          fi
-
-          # Clean up the temporary file
-          rm -f "$HTTP_RESPONSE"
+  check_workflow_status:
+    name: Check Workflow Status
+    needs:
+      - terragrunt_filter_working_dir
+      - terragrunt_apply
+    if: needs.terragrunt_filter_working_dir.outputs.working_dirs_count > 0
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-check-workflow-status.yml@main
+    with:
+      main_outcome: ${{ needs.terragrunt_apply.outputs.main_outcome }}
