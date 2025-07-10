@@ -22,6 +22,7 @@ jobs:
         ports:
           - 4566:4566
     steps:
+      # Step to checkout the code
       - name: Checkout code
         uses: actions/checkout@v4
 
