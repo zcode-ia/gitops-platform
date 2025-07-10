@@ -251,7 +251,7 @@ jobs:
 
           # Escape the content of COMMENT_OUTPUTS for JSON and convert to base64 to avoid issues with special characters and newlines
           ENCODED_COMMENT_OUTPUTS=$(echo -e "$COMMENT_OUTPUTS" | jq -Rsa . | base64 -w 0)
-          echo "ENCODED_COMMENT_OUTPUTS=${ENCODED_COMMENT_OUTPUTS}" >> $GITHUB_OUTPUT
+          echo "encoded_comment_outputs=${ENCODED_COMMENT_OUTPUTS}" >> $GITHUB_OUTPUT
 
           echo "comment_status=pass" >> $GITHUB_OUTPUT
 
