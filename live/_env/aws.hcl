@@ -4,13 +4,28 @@
 # remote state, and locking: https://github.com/gruntwork-io/terragrunt
 # ---------------------------------------------------------------------------------------------------------------------
 
+# Global variables for all AWS terraform modules.
+locals {
+  # Load the environment global variables.
+  env_vars          = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  environment_name  = local.env_vars.locals.vars.environment_name
+  environment_alias = local.env_vars.locals.vars.environment_alias
+
+  # Load AWS variables from the aws.json file.
+  aws_vars = jsondecode(templatefile("./aws.json", {
+    environment_name = local.environment_name
+  }))
+  aws_region = local.aws_vars.prod.region
+  tags       = local.aws_vars.tags
+}
+
 # Generate an AWS provider block.
 generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 provider "aws" {
-  region = "us-east-1"
+  region = "${local.aws_region}"
 
   skip_credentials_validation = true
   skip_metadata_api_check     = true
