@@ -18,7 +18,7 @@ include "aws" {
 
 # Configure the module to use in this environment.
 terraform {
-  source = "${get_repo_root()}/modules/vpc/stack"
+  source = "${get_repo_root()}/modules/vpc"
 }
 
 # Include the app global variables.
