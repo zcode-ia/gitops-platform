@@ -49,6 +49,9 @@ jobs:
       github_workspace: ${{ github.workspace }}
       github_run_id: ${{ github.run_id }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
+    secrets:
+      # Ensure that the secret INFRACOST_API_KEY exists in your repository or organization secrets.
+      infracost_api_key: ${{ secrets.INFRACOST_API_KEY }}
 
   github_post_comment:
     name: Github Post Comment
