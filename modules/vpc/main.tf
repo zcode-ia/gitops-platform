@@ -70,50 +70,31 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_iam_role" "this" {
-  count = var.enable_flow_logs ? 1 : 0
-  name  = var.flow_log_role_name
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "vpc-flow-logs.amazonaws.com"
-        }
-      }
-    ]
-  })
+  count              = var.enable_flow_logs ? 1 : 0
+  name               = var.flow_log_role_name
+  assume_role_policy = jsonencode(var.assume_role_policy_document)
+  tags               = var.iam_role_tags
 }
 
-resource "aws_iam_role_policy" "this" {
-  count = var.enable_flow_logs ? 1 : 0
-  name  = var.flow_log_policy_name
-  role  = aws_iam_role.this[0].id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-      }
-    ]
-  })
+resource "aws_iam_policy" "this" {
+  count  = var.enable_flow_logs ? 1 : 0
+  name   = var.flow_log_policy_name
+  policy = jsonencode(var.policy_document)
+  tags   = var.iam_policy_tags
+}
+
+resource "aws_iam_role_policy_attachment" "this" {
+  count      = var.enable_flow_logs ? 1 : 0
+  role       = aws_iam_role.this[0].id
+  policy_arn = aws_iam_policy.this[0].id
 }
 
 resource "aws_flow_log" "this" {
   count                = var.enable_flow_logs ? 1 : 0
   log_destination      = aws_cloudwatch_log_group.this[0].arn
-  traffic_type         = "ALL"
+  traffic_type         = var.traffic_type
   vpc_id               = aws_vpc.this.id
-  log_destination_type = "cloud-watch-logs"
+  log_destination_type = var.log_destination_type
   iam_role_arn         = aws_iam_role.this[0].arn
   tags                 = var.flow_log_tags
 }
