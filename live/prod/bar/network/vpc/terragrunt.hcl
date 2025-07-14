@@ -63,7 +63,7 @@ inputs = merge(
       value
     )
   },
-  # Extra manual tag-injected keys not present in the JSON.
+  # Extra manual tag-injected keys not present in the JSON
   {
     iam_role_tags   = local.tags,
     iam_policy_tags = local.tags
