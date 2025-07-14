@@ -38,6 +38,56 @@ variable "eip_tags" {
   type        = map(string)
 }
 
+variable "iam_role_tags" {
+  description = "Tags for the IAM role"
+  type        = map(string)
+  default     = {}
+}
+
+variable "assume_role_policy_document" {
+  description = "JSON of the policy document that grants an entity permission to assume the role"
+  type        = any
+  default = {
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+      }
+    ]
+  }
+}
+
+variable "iam_policy_tags" {
+  description = "Tags for the IAM policy"
+  type        = map(string)
+  default     = {}
+}
+
+variable "policy_document" {
+  description = "JSON of the policy document"
+  type        = any
+  default = {
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  }
+}
+
 variable "public_route_cidr_block" {
   description = "CIDR block for the public route"
   type        = string
@@ -100,6 +150,18 @@ variable "flow_log_policy_name" {
   description = "Name of the IAM policy for flow logs."
   type        = string
   default     = null
+}
+
+variable "traffic_type" {
+  description = "The type of traffic to log. Valid values are ACCEPT, REJECT, or ALL."
+  type        = string
+  default     = "ALL"
+}
+
+variable "log_destination_type" {
+  description = "The type of destination for the flow log. Valid values are cloud-watch-logs or s3."
+  type        = string
+  default     = "cloud-watch-logs"
 }
 
 variable "cloudwatch_log_group_retention_in_days" {
