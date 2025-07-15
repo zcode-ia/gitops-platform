@@ -12,10 +12,10 @@ locals {
   environment_alias = local.env_vars.locals.vars.environment_alias
 
   # Load AWS variables from the aws.json file.
-  aws_vars = jsondecode(templatefile("./aws.json", {
+  aws_vars = jsondecode(templatefile("./_env/aws.json", {
     environment_name = local.environment_name
   }))
-  aws_region = local.aws_vars.prod.region
+  aws_region = local.aws_vars.region
   tags       = local.aws_vars.tags
 }
 
