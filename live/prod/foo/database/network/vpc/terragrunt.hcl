@@ -6,6 +6,9 @@
 # Include the root `terragrunt.hcl` configuration. The root configuration contains settings that are common across all components and environments, such as how to configure remote state.
 include "root" {
   path = find_in_parent_folders("root.hcl")
+
+  # To reference the variables from the included config.
+  expose = true
 }
 
 # Include the aws provider configuration.
@@ -29,7 +32,7 @@ locals {
 
 # Configure the module to use in this environment.
 terraform {
-  source = "${get_repo_root()}/modules/vpc"
+  source = "${include.root.locals.infrastructure_catalog_repo}//modules/aws/stacks/vpc?ref=v1.0.0"
 }
 
 # Load the JSON file containing the inputs for the module and merge tags at runtime.
