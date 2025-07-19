@@ -59,6 +59,7 @@ jobs:
       github_run_id: ${{ github.run_id }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
     secrets:
+      github_secret_token: ${{ secrets.GITHUB_TOKEN }}
       # Ensure that the secret INFRACOST_API_KEY exists in your repository or organization secrets.
       infracost_api_key: ${{ secrets.INFRACOST_API_KEY }}
 
