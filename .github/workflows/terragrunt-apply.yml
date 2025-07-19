@@ -49,6 +49,8 @@ jobs:
       github_repository: ${{ github.repository }}
       github_run_id: ${{ github.run_id }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
+    secrets:
+      github_secret_token: ${{ secrets.GITHUB_TOKEN }}
 
   comment_results_status:
     name: Comment Results Status
