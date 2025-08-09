@@ -33,6 +33,48 @@
       "tags": { "name": "private-subnet-${application_name}-app-${environment_alias}-1c" }
     }
   ],
+  "public_network_acl_tags": { "name": "public-nacl-${application_name}-app-${environment_alias}" },
+  "public_nacl_rules": [
+    {
+      "rule_number": 100,
+      "egress": false,
+      "protocol": "-1",
+      "rule_action": "allow",
+      "cidr_block": "0.0.0.0/0",
+      "from_port": 0,
+      "to_port": 0
+    },
+    {
+      "rule_number": 100,
+      "egress": true,
+      "protocol": "-1",
+      "rule_action": "allow",
+      "cidr_block": "0.0.0.0/0",
+      "from_port": 0,
+      "to_port": 0
+    }
+  ],
+  "private_network_acl_tags": { "name": "private-nacl-${application_name}-app-${environment_alias}" },
+  "private_nacl_rules": [
+    {
+      "rule_number": 100,
+      "egress": false,
+      "protocol": "-1",
+      "rule_action": "allow",
+      "cidr_block": "0.0.0.0/0",
+      "from_port": 0,
+      "to_port": 0
+    },
+    {
+      "rule_number": 100,
+      "egress": true,
+      "protocol": "-1",
+      "rule_action": "allow",
+      "cidr_block": "0.0.0.0/0",
+      "from_port": 0,
+      "to_port": 0
+    }
+  ],
   "flow_log_tags": { "name": "flow-log-${application_name}-app-${environment_alias}" },
   "cloudwatch_log_group_tags": { "name": "cloudwatch-log-group-${application_name}-app-${environment_alias}" },
   "flow_log_role_name": "flow-log-role-${application_name}-app-${environment_alias}",
