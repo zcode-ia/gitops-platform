@@ -14,14 +14,14 @@ jobs:
   terragrunt_set_environment:
     name: Set Environment
     if: github.event.pull_request.merged == true
-    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-set-environment.yml@main
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-set-environment.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
     with:
       github_base_ref: ${{ github.base_ref }}
 
   github_list_pr_files:
     name: List Modified Files
     if: github.event.pull_request.merged == true
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-list-pr-files.yml@main
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-list-pr-files.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
     with:
       github_repository: ${{ github.repository }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
@@ -34,7 +34,7 @@ jobs:
       - terragrunt_set_environment
       - github_list_pr_files
     if: github.event.pull_request.merged == true && needs.github_list_pr_files.outputs.pr_files_count > 0
-    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-filter-working-dir.yml@main
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-filter-working-dir.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
     with:
       working_directory_filter: ${{ needs.terragrunt_set_environment.outputs.working_dir }}
       encoded_modified_files_to_filter: ${{ needs.github_list_pr_files.outputs.encoded_modified_files }}
@@ -43,7 +43,7 @@ jobs:
     name: Terragrunt Apply
     needs: terragrunt_filter_working_dir
     if: needs.terragrunt_filter_working_dir.outputs.working_dirs_count > 0
-    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-apply.yml@main
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-apply.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
     with:
       encoded_working_dirs: ${{ needs.terragrunt_filter_working_dir.outputs.encoded_working_dirs }}
       github_repository: ${{ github.repository }}
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: Comment Results
         id: comment_results
@@ -91,7 +91,7 @@ jobs:
     needs:
       - terragrunt_apply
       - comment_results_status
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-post-comment.yml@main
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-post-comment.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
     with:
       github_repository: ${{ github.repository }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
@@ -107,6 +107,6 @@ jobs:
     name: Check Workflow Status
     if: always()
     needs: comment_results_status
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-check-workflow-status.yml@main
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-check-workflow-status.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
     with:
       main_outcome: ${{ needs.comment_results_status.outputs.comment_results_status_outcome }}
