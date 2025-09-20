@@ -15,13 +15,13 @@ on:
 jobs:
   terragrunt_set_environment:
     name: Set Environment
-    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-set-environment.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-set-environment.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
     with:
       github_base_ref: ${{ github.base_ref }}
 
   github_list_pr_files:
     name: List Modified Files
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-list-pr-files.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-list-pr-files.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
     with:
       github_repository: ${{ github.repository }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
@@ -33,9 +33,14 @@ jobs:
     needs:
       - github_list_pr_files
     if: needs.github_list_pr_files.outputs.pr_files_count > 0
-    uses: zcode-ia/gitops-workflows/.github/workflows/pre-commit.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/pre-commit.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
     with:
       encoded_modified_files: ${{ needs.github_list_pr_files.outputs.encoded_modified_files }}
+      owner: ${{ github.repository_owner }}
+      repositories: ${{ github.event.repository.name }}
+    secrets:
+      github_app_id: ${{ secrets.CREATE_TOKEN_APP_ID }}
+      github_app_private_key: ${{ secrets.CREATE_TOKEN_APP_PRIVATE_KEY }}
 
   terragrunt_filter_working_dir:
     name: Filter Working Directory
@@ -43,7 +48,7 @@ jobs:
       - terragrunt_set_environment
       - github_list_pr_files
     if: needs.github_list_pr_files.outputs.pr_files_count > 0
-    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-filter-working-dir.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-filter-working-dir.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
     with:
       working_directory_filter: ${{ needs.terragrunt_set_environment.outputs.working_dir }}
       encoded_modified_files_to_filter: ${{ needs.github_list_pr_files.outputs.encoded_modified_files }}
@@ -52,13 +57,17 @@ jobs:
     name: Terragrunt Plan
     needs: terragrunt_filter_working_dir
     if: needs.terragrunt_filter_working_dir.outputs.working_dirs_count > 0
-    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-plan.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/terragrunt-plan.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
     with:
       encoded_working_dirs: ${{ needs.terragrunt_filter_working_dir.outputs.encoded_working_dirs }}
       github_repository: ${{ github.repository }}
       github_run_id: ${{ github.run_id }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
+      owner: ${{ github.repository_owner }}
+      repositories: ${{ github.event.repository.name }}
     secrets:
+      github_app_id: ${{ secrets.CREATE_TOKEN_APP_ID }}
+      github_app_private_key: ${{ secrets.CREATE_TOKEN_APP_PRIVATE_KEY }}
       github_secret_token: ${{ secrets.GITHUB_TOKEN }}
       # Ensure that the secret INFRACOST_API_KEY exists in your repository or organization secrets.
       infracost_api_key: ${{ secrets.INFRACOST_API_KEY }}
@@ -116,7 +125,7 @@ jobs:
     needs:
       - terragrunt_plan
       - comment_results_status
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-post-comment.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-post-comment.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
     with:
       github_repository: ${{ github.repository }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
@@ -132,6 +141,6 @@ jobs:
     name: Check Workflow Status
     if: always()
     needs: comment_results_status
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-check-workflow-status.yml@e6190ca441f297c5b5ec3794726ed20d08fded1d # v1.12.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-check-workflow-status.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
     with:
       main_outcome: ${{ needs.comment_results_status.outputs.comment_results_status_outcome }}
