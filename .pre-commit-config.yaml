@@ -30,14 +30,14 @@ repos:
     hooks:
     -   id: terragrunt-hcl-validate
         name: Terragrunt HCL validate
-        entry: bash ./hooks/terragrunt_hcl_validate.sh
+        entry: bash ./tools/hooks/terragrunt_hcl_validate.sh
         language: system
         types: [hcl]
         description: Run Terragrunt validate on changed files
         pass_filenames: true
     -   id: terragrunt-validate-inputs
         name: Terragrunt validate inputs
-        entry: bash ./hooks/terragrunt_validate_inputs.sh
+        entry: bash ./tools/hooks/terragrunt_validate_inputs.sh
         language: system
         types: [hcl]
         description: Run Terragrunt validate on changed files

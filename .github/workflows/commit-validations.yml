@@ -8,24 +8,39 @@ on:
 jobs:
   commit_lint:
     name: Run Commit Lint
-    uses: zcode-ia/gitops-workflows/.github/workflows/commit-lint.yml@35061a1947682fb5c33841d94a9d14886ef5743e # v1.14.1
+    uses: zcode-ia/gitops-workflows/.github/workflows/commit-lint.yml@edad4257e0935309a6cdfe51d8a282cdf8c3e94e # v1.15.0
+    with:
+      owner: ${{ github.repository_owner }}
+      repositories: ${{ github.event.repository.name }}
+    secrets:
+      github_app_id: ${{ secrets.CREATE_TOKEN_APP_ID }}
+      github_app_private_key: ${{ secrets.CREATE_TOKEN_APP_PRIVATE_KEY }}
 
   pr_diff_check:
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-pr-diff-check.yml@4c3074c8ac3b910e40c2f409401349992443e758 # v1.13.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-pr-diff-check.yml@edad4257e0935309a6cdfe51d8a282cdf8c3e94e # v1.15.0
     with:
       comparison_branches: dev
       github_base_ref: ${{ github.base_ref }}
       github_head_ref: ${{ github.head_ref }}
+      owner: ${{ github.repository_owner }}
+      repositories: ${{ github.event.repository.name }}
+    secrets:
+      github_app_id: ${{ secrets.CREATE_TOKEN_APP_ID }}
+      github_app_private_key: ${{ secrets.CREATE_TOKEN_APP_PRIVATE_KEY }}
 
   github_post_comment:
     name: Github Post Comment
     if: always()
     needs: pr_diff_check
-    uses: zcode-ia/gitops-workflows/.github/workflows/github-post-comment.yml@4c3074c8ac3b910e40c2f409401349992443e758 # v1.13.0
+    uses: zcode-ia/gitops-workflows/.github/workflows/github-post-comment.yml@edad4257e0935309a6cdfe51d8a282cdf8c3e94e # v1.15.0
     with:
       github_repository: ${{ github.repository }}
       github_event_pull_request_number: ${{ github.event.pull_request.number }}
       encoded_comment_title: ${{ needs.pr_diff_check.outputs.encoded_comment_title }}
       encoded_comment_outputs: ${{ needs.pr_diff_check.outputs.encoded_comment_outputs }}
+      owner: ${{ github.repository_owner }}
+      repositories: ${{ github.event.repository.name }}
     secrets:
+      github_app_id: ${{ secrets.CREATE_TOKEN_APP_ID }}
+      github_app_private_key: ${{ secrets.CREATE_TOKEN_APP_PRIVATE_KEY }}
       github_secret_token: ${{ secrets.GITHUB_TOKEN }}
